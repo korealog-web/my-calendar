@@ -1109,14 +1109,15 @@
   }
 
   function checkReady() {
-    // Auto-hook once both libs ready
     if (gapiReady && gisReady) {
-      // Restore saved token if exists
       const saved = sessionStorage.getItem('gc_token');
       if (saved) {
+        // 저장된 토큰 조용히 검증 (에러시 그냥 클리어)
         accessToken = saved;
         gapi.client.setToken({ access_token: saved });
-        fetchUserInfo();
+        fetchUserInfo(true); // silent=true
+      } else {
+        setSyncStatus('Google 계정으로 로그인해서 동기화를 시작하세요');
       }
     }
   }

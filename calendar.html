@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>캘린더 앱</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      font-family: 'Malgun Gothic', sans-serif;
+      color: #fff;
+      padding: 24px 16px 48px;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+
+    /* Notification */
+    #notif {
+      display: none; position: fixed; top: 20px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
+      padding: 10px 22px; font-size: 14px; font-weight: 500; z-index: 9999;
+    }
+    @keyframes fadeDown { from{opacity:0;top:10px} to{opacity:1;top:20px} }
+
+    /* Header */
+    .header {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px; padding: 18px 24px;
+      display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      margin-bottom: 18px;
+    }
+    .header-title { font-size: 26px; font-weight: 700; }
+    .header-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+    .header-btns { display: flex; gap: 8px; align-items: center; }
+    .btn {
+      background: rgba(255,255,255,0.1); border: none; color: #fff;
+      border-radius: 10px; cursor: pointer; transition: background 0.2s;
+    }
+    .btn:hover { background: rgba(255,255,255,0.2); }
+    .btn-nav { width: 34px; height: 34px; font-size: 18px; }
+    .btn-today { padding: 6px 14px; font-size: 12px; }
+
+    /* Calendar grid */
+    .cal {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; overflow: hidden; margin-bottom: 18px;
+      position: relative;
+    }
+    .day-headers { display: grid; grid-template-columns: repeat(7,1fr); }
+    .day-header {
+      text-align: center; padding: 12px 0;
+      font-size: 12px; font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .day-header.sun { color: #FF6B6B; }
+    .day-header.sat { color: #4ECDC4; }
+    .day-header.weekday { color: rgba(255,255,255,0.45); }
+
+    .cells { display: grid; grid-template-columns: repeat(7,1fr); }
+    .cell {
+      min-height: 86px; padding: 8px 6px;
+      border-right: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      cursor: pointer; transition: background 0.15s;
+      position: relative;
+    }
+    .cell:nth-child(7n) { border-right: none; }
+    .cell.empty { cursor: default; }
+    .cell:not(.empty):hover { background: rgba(255,255,255,0.06); }
+    .cell.today { background: rgba(102,126,234,0.13); }
+    .cell.selected { background: rgba(102,126,234,0.22); outline: 2px solid rgba(102,126,234,0.5); outline-offset: -2px; }
+
+    .day-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 50%;
+      font-size: 12px; font-weight: 400; margin-bottom: 4px;
+    }
+    .day-num.today-circle { background: linear-gradient(135deg,#667eea,#764ba2); font-weight: 700; }
+    .day-num.sun-color { color: #FF8A8A; }
+    .day-num.sat-color { color: #4ECDC4; }
+
+    .event-pill {
+      border-radius: 4px; padding: 2px 5px;
+      font-size: 10px; font-weight: 500;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      margin-bottom: 2px; cursor: pointer;
+      display: flex; align-items: center; gap: 3px;
+    }
+    .more-label { font-size: 9px; color: rgba(255,255,255,0.35); }
+
+    /* FAB + button */
+    .fab {
+      position: fixed; bottom: 28px; right: 28px;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg,#667eea,#764ba2);
+      border: none; color: #fff; font-size: 26px;
+      cursor: pointer; box-shadow: 0 6px 24px rgba(102,126,234,0.5);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s; z-index: 400;
+    }
+    .fab:hover { transform: scale(1.1); box-shadow: 0 8px 32px rgba(102,126,234,0.7); }
+    .fab-label {
+      position: fixed; bottom: 90px; right: 20px;
+      background: rgba(255,255,255,0.12); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px; padding: 5px 10px; font-size: 11px;
+      color: rgba(255,255,255,0.7); z-index: 400; pointer-events: none;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .fab:hover + .fab-label { opacity: 1; }
+
+    /* Event list */
+    .event-list-wrap {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; padding: 18px 22px;
+    }
+    .event-list-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.45); margin-bottom: 12px; }
+    .event-empty { color: rgba(255,255,255,0.2); font-size: 13px; text-align: center; padding: 12px 0; }
+    .event-row {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px; padding: 9px 12px; margin-bottom: 7px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .event-row:hover { background: rgba(255,255,255,0.09); }
+    .event-bar { width: 4px; height: 40px; border-radius: 2px; flex-shrink: 0; }
+    .event-thumb {
+      width: 42px; height: 42px; border-radius: 8px;
+      object-fit: cover; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.15); cursor: zoom-in;
+    }
+    .event-info { flex: 1; min-width: 0; }
+    .event-name { font-size: 13px; font-weight: 500; }
+    .event-memo { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event-date { font-size: 11px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+    .btn-del {
+      background: none; border: none; color: rgba(255,100,100,0.5);
+      font-size: 20px; cursor: pointer; padding: 0 3px; flex-shrink: 0; line-height: 1;
+    }
+    .btn-del:hover { color: rgba(255,100,100,0.9); }
+
+    /* Edit/Add Modal */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center; z-index: 500; padding: 16px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: linear-gradient(145deg,#1e1b4b,#312e81);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px; padding: 26px; width: 100%; max-width: 340px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .modal input[type=text], .modal textarea {
+      width: 100%; background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; padding: 10px 12px;
+      color: #fff; font-size: 13px; outline: none;
+      font-family: 'Malgun Gothic', sans-serif;
+      display: block; margin-bottom: 10px;
+    }
+    .modal input::placeholder, .modal textarea::placeholder { color: rgba(255,255,255,0.3); }
+    .modal textarea { resize: none; }
+    .photo-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 6px; }
+    .photo-upload-area {
+      border: 2px dashed rgba(255,255,255,0.2); border-radius: 12px;
+      padding: 18px; text-align: center; cursor: pointer;
+      transition: all 0.2s; margin-bottom: 10px;
+      background: rgba(255,255,255,0.04);
+    }
+    .photo-upload-area:hover, .photo-upload-area.drag-over {
+      border-color: rgba(102,126,234,0.7); background: rgba(102,126,234,0.08);
+    }
+    .photo-upload-area.has-image { padding: 8px; border-style: solid; border-color: rgba(102,126,234,0.5); }
+    .upload-icon { font-size: 30px; margin-bottom: 6px; }
+    .upload-text { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .upload-hint { font-size: 10px; color: rgba(255,255,255,0.25); margin-top: 3px; }
+    #preview-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; display: none; }
+    .remove-photo-btn {
+      margin-top: 7px; background: rgba(255,80,80,0.15);
+      border: 1px solid rgba(255,80,80,0.3); color: #ff8080;
+      border-radius: 6px; padding: 4px 12px; font-size: 11px; cursor: pointer; display: none;
+    }
+    .modal-btns { display: flex; gap: 7px; margin-top: 14px; }
+    .modal-btns button { border-radius: 10px; padding: 9px 0; font-size: 12px; cursor: pointer; border: none; font-family: 'Malgun Gothic', sans-serif; }
+    #btn-delete { flex:1; background:rgba(255,80,80,0.15); border:1px solid rgba(255,80,80,0.25)!important; color:#ff8080; display:none; }
+    #btn-cancel { flex:1; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.5); }
+    #btn-save { flex:2; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:600; }
+
+    /* Detail Modal */
+    .detail-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+      align-items: center; justify-content: center; z-index: 600; padding: 16px;
+    }
+    .detail-overlay.open { display: flex; }
+    .detail-modal {
+      background: linear-gradient(145deg,#1a1040,#2d1b69);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 22px; width: 100%; max-width: 360px;
+      box-shadow: 0 28px 72px rgba(0,0,0,0.6);
+      overflow: hidden; max-height: 90vh;
+      display: flex; flex-direction: column;
+    }
+    .detail-color-bar { height: 5px; flex-shrink: 0; }
+    .detail-body { padding: 24px; overflow-y: auto; }
+    .detail-date-line {
+      font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .detail-title { font-size: 20px; font-weight: 700; margin-bottom: 14px; line-height: 1.3; }
+    .detail-section { margin-bottom: 16px; }
+    .detail-section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      color: rgba(255,255,255,0.35); text-transform: uppercase; margin-bottom: 6px;
+    }
+    .detail-memo-text {
+      font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.6;
+      background: rgba(255,255,255,0.05); border-radius: 10px; padding: 12px;
+      white-space: pre-wrap;
+    }
+    .detail-photo {
+      width: 100%; border-radius: 12px; object-fit: cover;
+      max-height: 240px; cursor: zoom-in;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .detail-footer {
+      display: flex; gap: 8px; padding: 16px 24px;
+      border-top: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;
+    }
+    .detail-footer button {
+      border-radius: 10px; padding: 10px 0; font-size: 13px;
+      cursor: pointer; border: none; font-family: 'Malgun Gothic', sans-serif; font-weight: 600;
+    }
+    #detail-edit-btn { flex:2; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; }
+    #detail-close-btn { flex:1; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); }
+
+    /* Image viewer */
+    .img-viewer {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92); backdrop-filter: blur(10px);
+      align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+    }
+    .img-viewer.open { display: flex; }
+    .img-viewer img { max-width: 100%; max-height: 88vh; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.8); }
+    .img-viewer-close {
+      position: absolute; top: 18px; right: 18px;
+      background: rgba(255,255,255,0.15); border: none; color: #fff;
+      width: 40px; height: 40px; border-radius: 50%; font-size: 20px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .img-viewer-close:hover { background: rgba(255,255,255,0.3); }
+
+    /* Timeline columns */
+    .timeline-wrap {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; padding: 20px 18px; margin-top: 18px;
+    }
+    .timeline-header {
+      font-size: 13px; font-weight: 600;
+      color: rgba(255,255,255,0.45); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .timeline-grid {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
+    }
+    @media (max-width: 600px) { .timeline-grid { grid-template-columns: repeat(2,1fr); } }
+    .tl-col {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; overflow: hidden;
+    }
+    .tl-col-header {
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      text-align: center;
+    }
+    .tl-col-year { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+    .tl-col-date { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+    .tl-day-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.15s;
+    }
+    .tl-day-row:last-child { border-bottom: none; }
+    .tl-day-row.is-center {
+      background: rgba(102,126,234,0.15);
+      border-left: 3px solid #667eea;
+      padding-left: 7px;
+    }
+    .tl-day-row:hover { background: rgba(255,255,255,0.05); }
+    .tl-day-row.is-center:hover { background: rgba(102,126,234,0.22); }
+    .tl-date-badge { flex-shrink: 0; text-align: center; width: 26px; }
+    .tl-date-num { font-size: 12px; font-weight: 600; line-height: 1; }
+    .tl-date-dow { font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+    .tl-date-num.sun { color: #FF8A8A; }
+    .tl-date-num.sat { color: #4ECDC4; }
+    .tl-events { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 1px; }
+    .tl-empty { font-size: 10px; color: rgba(255,255,255,0.13); }
+    .tl-event-tag {
+      font-size: 10px; font-weight: 500; border-radius: 4px; padding: 2px 5px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      display: flex; align-items: center; gap: 3px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .tl-event-tag:hover { opacity: 0.8; }
+    .tl-photo-icon { font-size: 8px; flex-shrink: 0; }
+
+    /* Google Calendar Sync Panel */
+    .sync-wrap {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; padding: 20px 22px; margin-top: 18px;
+    }
+    .sync-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+    }
+    .sync-header-icon { font-size: 22px; }
+    .sync-header-text { flex: 1; }
+    .sync-header-title { font-size: 14px; font-weight: 700; }
+    .sync-header-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+    .sync-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    @media (max-width: 500px) { .sync-grid { grid-template-columns: 1fr; } }
+    .sync-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 16px;
+    }
+    .sync-card-title {
+      font-size: 12px; font-weight: 700; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sync-card-desc {
+      font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 14px; line-height: 1.5;
+    }
+    .sync-steps {
+      font-size: 10px; color: rgba(255,255,255,0.3);
+      margin-bottom: 14px; line-height: 1.8;
+      padding-left: 2px;
+    }
+    .sync-steps span { display: block; }
+    .sync-btn {
+      width: 100%; padding: 10px; border-radius: 10px; border: none;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: 'Malgun Gothic', sans-serif;
+      transition: opacity 0.2s;
+    }
+    .sync-btn:hover { opacity: 0.85; }
+    .sync-btn-export {
+      background: linear-gradient(135deg, #4285F4, #34A853);
+      color: #fff;
+    }
+    .sync-btn-import {
+      background: rgba(255,255,255,0.1);
+      color: #fff; border: 1px solid rgba(255,255,255,0.2) !important;
+    }
+    .sync-divider {
+      border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 16px 0;
+    }
+    .sync-scope {
+      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .scope-btn {
+      padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6);
+      font-size: 11px; cursor: pointer; font-family: 'Malgun Gothic', sans-serif;
+      transition: all 0.2s;
+    }
+    .scope-btn.active {
+      background: rgba(102,126,234,0.3); border-color: rgba(102,126,234,0.6);
+      color: #fff; font-weight: 600;
+    }
+    .sync-result {
+      font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 10px;
+      min-height: 16px; text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div id="notif"></div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title" id="header-title"></div>
+      <div class="header-sub" id="header-sub"></div>
+    </div>
+    <div class="header-btns">
+      <button class="btn btn-nav" onclick="changeMonth(-1)">‹</button>
+      <button class="btn btn-today" onclick="goToday()">오늘</button>
+      <button class="btn btn-nav" onclick="changeMonth(1)">›</button>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="cal">
+    <div class="day-headers">
+      <div class="day-header sun">일</div>
+      <div class="day-header weekday">월</div>
+      <div class="day-header weekday">화</div>
+      <div class="day-header weekday">수</div>
+      <div class="day-header weekday">목</div>
+      <div class="day-header weekday">금</div>
+      <div class="day-header sat">토</div>
+    </div>
+    <div class="cells" id="cells"></div>
+  </div>
+
+  <!-- Event list -->
+  <div class="event-list-wrap">
+    <div class="event-list-title">이번 달 일정</div>
+    <div id="event-list"></div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline-wrap">
+    <div class="timeline-header" id="timeline-header">🕐 날짜별 회고 &nbsp;—&nbsp; 기준일 전후 3일</div>
+    <div class="timeline-grid" id="timeline-grid"></div>
+  </div>
+
+  <!-- Google Calendar Sync -->
+  <div class="sync-wrap">
+    <div class="sync-header">
+      <div class="sync-header-icon">📅</div>
+      <div class="sync-header-text">
+        <div class="sync-header-title">Google 캘린더 연동</div>
+        <div class="sync-header-sub">.ics 파일로 내보내기 / 가져오기</div>
+      </div>
+    </div>
+
+    <div class="sync-grid">
+      <!-- Export -->
+      <div class="sync-card">
+        <div class="sync-card-title">⬆️ 내보내기</div>
+        <div class="sync-card-desc">이 캘린더의 일정을 .ics 파일로 내보내서 Google 캘린더에 가져올 수 있어요.</div>
+        <div class="sync-scope" id="export-scope">
+          <button class="scope-btn active" data-val="all" onclick="setExportScope(this)">전체</button>
+          <button class="scope-btn" data-val="year" onclick="setExportScope(this)">올해</button>
+          <button class="scope-btn" data-val="month" onclick="setExportScope(this)">이번 달</button>
+        </div>
+        <div class="sync-steps">
+          <span>① 아래 버튼으로 .ics 파일 다운로드</span>
+          <span>② Google 캘린더 → 설정 ⚙️</span>
+          <span>③ 가져오기 → .ics 파일 선택</span>
+        </div>
+        <button class="sync-btn sync-btn-export" onclick="exportICS()">⬇️ .ics 파일 다운로드</button>
+        <div class="sync-result" id="export-result"></div>
+      </div>
+
+      <!-- Import -->
+      <div class="sync-card">
+        <div class="sync-card-title">⬇️ 가져오기</div>
+        <div class="sync-card-desc">Google 캘린더에서 내보낸 .ics 파일을 이 캘린더로 가져올 수 있어요.</div>
+        <div class="sync-steps">
+          <span>① Google 캘린더 → 설정 ⚙️</span>
+          <span>② 내보내기 → .ics 파일 다운로드</span>
+          <span>③ 아래 버튼으로 파일 선택</span>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.45);cursor:pointer">
+            <input type="checkbox" id="import-merge" checked style="accent-color:#667eea"/>
+            기존 일정 유지하고 병합
+          </label>
+        </div>
+        <button class="sync-btn sync-btn-import" onclick="document.getElementById('ics-input').click()">📂 .ics 파일 선택</button>
+        <input type="file" id="ics-input" accept=".ics" style="display:none" onchange="importICS(event)"/>
+        <div class="sync-result" id="import-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab-btn" onclick="fabClick()" title="일정 추가">+</button>
+<div class="fab-label" id="fab-label">날짜를 선택하세요</div>
+
+<!-- Add/Edit Modal -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modal-title"></div>
+    <input type="text" id="input-title" placeholder="일정 제목" onkeydown="if(event.key==='Enter')saveEvent()"/>
+    <textarea id="input-memo" placeholder="메모 (선택사항)" rows="4"></textarea>
+    <div class="photo-label">📷 사진 첨부</div>
+    <div class="photo-upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
+      <div id="upload-placeholder">
+        <div class="upload-icon">🖼️</div>
+        <div class="upload-text">클릭하거나 사진을 여기에 드래그하세요</div>
+        <div class="upload-hint">JPG, PNG, GIF · 최대 5MB</div>
+      </div>
+      <img id="preview-img" alt="미리보기"/>
+      <button class="remove-photo-btn" id="remove-photo-btn" onclick="removePhoto(event)">✕ 사진 제거</button>
+    </div>
+    <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFileSelect(event)"/>
+    <div class="modal-btns">
+      <button id="btn-delete" onclick="deleteEventModal()">삭제</button>
+      <button id="btn-cancel" onclick="closeModal()">취소</button>
+      <button id="btn-save" onclick="saveEvent()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail(event)">
+  <div class="detail-modal" onclick="event.stopPropagation()">
+    <div class="detail-color-bar" id="detail-color-bar"></div>
+    <div class="detail-body">
+      <div class="detail-date-line" id="detail-date-line"></div>
+      <div class="detail-title" id="detail-title"></div>
+      <div class="detail-section" id="detail-memo-section">
+        <div class="detail-section-label">메모</div>
+        <div class="detail-memo-text" id="detail-memo-text"></div>
+      </div>
+      <div class="detail-section" id="detail-photo-section">
+        <div class="detail-section-label">사진</div>
+        <img class="detail-photo" id="detail-photo-img" src="" alt="첨부사진" onclick="openViewer(this.src)"/>
+      </div>
+    </div>
+    <div class="detail-footer">
+      <button id="detail-close-btn" onclick="closeDetail()">닫기</button>
+      <button id="detail-edit-btn" onclick="openEditFromDetail()">✏️ 수정하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Viewer -->
+<div class="img-viewer" id="img-viewer" onclick="closeViewer()">
+  <button class="img-viewer-close" onclick="closeViewer()">✕</button>
+  <img id="viewer-img" src="" alt="사진" onclick="event.stopPropagation()"/>
+</div>
+
+<script>
+  const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+  const DOW_KR = ['일','월','화','수','목','금','토'];
+  const COLORS = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD","#98D8C8"];
+
+  const today = new Date();
+  let curYear = today.getFullYear();
+  let curMonth = today.getMonth();
+  let events = {};
+  let editKey = null, editIdx = null;
+  let currentPhoto = null;
+  let selectedDay = null; // for FAB
+
+  // Detail modal state
+  let detailKey = null, detailIdx = null;
+
+  try { events = JSON.parse(localStorage.getItem('cal_events') || '{}'); } catch(e) { events = {}; }
+
+  function saveStorage() {
+    try { localStorage.setItem('cal_events', JSON.stringify(events)); }
+    catch(e) { showNotif('⚠️ 저장 용량 초과. 사진 크기를 줄여보세요.'); }
+  }
+
+  function dateKey(y, m, d) {
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function formatDateFull(y, m, d) {
+    const dt = new Date(y, m, d);
+    return `${y}년 ${m+1}월 ${d}일 (${DOW_KR[dt.getDay()]})`;
+  }
+
+  function showNotif(msg) {
+    const el = document.getElementById('notif');
+    el.textContent = msg; el.style.display = 'block';
+    el.style.animation = 'none'; void el.offsetWidth;
+    el.style.animation = 'fadeDown 0.3s ease';
+    setTimeout(() => el.style.display = 'none', 2500);
+  }
+
+  // ── FAB ────────────────────────────────────────────────────────────
+  function fabClick() {
+    if (selectedDay) {
+      openAddModal(selectedDay);
+    } else {
+      showNotif('캘린더에서 날짜를 먼저 선택하세요 👆');
+    }
+  }
+
+  function updateFabLabel() {
+    const lbl = document.getElementById('fab-label');
+    if (selectedDay) {
+      lbl.textContent = `${curMonth+1}월 ${selectedDay}일에 추가`;
+    } else {
+      lbl.textContent = '날짜를 선택하세요';
+    }
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────
+  function render() {
+    document.getElementById('header-title').textContent = `${curYear}년 ${MONTHS[curMonth]}`;
+    document.getElementById('header-sub').textContent =
+      today.toLocaleDateString('ko-KR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
+    const firstDay = new Date(curYear, curMonth, 1).getDay();
+    const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+    const cellsEl = document.getElementById('cells');
+    cellsEl.innerHTML = '';
+
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement('div');
+      el.className = 'cell empty';
+      cellsEl.appendChild(el);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const col = (firstDay + d - 1) % 7;
+      const isTod = today.getFullYear()===curYear && today.getMonth()===curMonth && today.getDate()===d;
+      const isSel = selectedDay === d;
+      const key = dateKey(curYear, curMonth, d);
+      const evs = events[key] || [];
+
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (isTod ? ' today' : '') + (isSel ? ' selected' : '');
+
+      // Click on empty area → select day
+      cell.onclick = (e) => {
+        if (e.target === cell || e.target.classList.contains('day-num') || e.target.classList.contains('more-label')) {
+          selectedDay = (selectedDay === d) ? null : d;
+          updateFabLabel();
+          render();
+        }
+      };
+
+      const num = document.createElement('div');
+      num.className = 'day-num' + (isTod?' today-circle':'') + (col===0?' sun-color':col===6?' sat-color':'');
+      num.textContent = d;
+      cell.appendChild(num);
+
+      evs.slice(0,2).forEach((ev, i) => {
+        const pill = document.createElement('div');
+        pill.className = 'event-pill';
+        pill.style.background = ev.color;
+        pill.innerHTML = (ev.photo ? '<span style="font-size:9px">🖼</span>' : '') +
+          `<span style="overflow:hidden;text-overflow:ellipsis">${ev.text}</span>`;
+        pill.onclick = (e) => { e.stopPropagation(); openDetail(d, i, ev); };
+        cell.appendChild(pill);
+      });
+
+      if (evs.length > 2) {
+        const more = document.createElement('div');
+        more.className = 'more-label';
+        more.textContent = `+${evs.length-2}개`;
+        cell.appendChild(more);
+      }
+      cellsEl.appendChild(cell);
+    }
+
+    renderEventList();
+    renderTimeline();
+  }
+
+  function renderEventList() {
+    const prefix = `${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+    const listEl = document.getElementById('event-list');
+    listEl.innerHTML = '';
+
+    const items = Object.entries(events)
+      .filter(([k]) => k.startsWith(prefix))
+      .sort(([a],[b]) => a.localeCompare(b))
+      .flatMap(([k, evs]) => evs.map((ev, i) => ({k, ev, i})));
+
+    if (items.length === 0) {
+      listEl.innerHTML = '<div class="event-empty">날짜를 선택하고 + 버튼으로 일정을 추가해보세요 ✨</div>';
+      return;
+    }
+
+    items.forEach(({k, ev, i}) => {
+      const day = parseInt(k.slice(8));
+      const row = document.createElement('div');
+      row.className = 'event-row';
+      row.onclick = () => openDetail(day, i, ev);
+
+      const bar = document.createElement('div');
+      bar.className = 'event-bar';
+      bar.style.background = ev.color;
+      row.appendChild(bar);
+
+      if (ev.photo) {
+        const thumb = document.createElement('img');
+        thumb.className = 'event-thumb';
+        thumb.src = ev.photo;
+        thumb.title = '클릭하여 크게 보기';
+        thumb.onclick = (e) => { e.stopPropagation(); openViewer(ev.photo); };
+        row.appendChild(thumb);
+      }
+
+      const info = document.createElement('div');
+      info.className = 'event-info';
+      info.innerHTML = `<div class="event-name">${ev.text}</div>${ev.memo ? `<div class="event-memo">${ev.memo}</div>` : ''}`;
+      row.appendChild(info);
+
+      const date = document.createElement('div');
+      date.className = 'event-date';
+      date.textContent = `${k.slice(8)}일`;
+      row.appendChild(date);
+
+      const del = document.createElement('button');
+      del.className = 'btn-del';
+      del.textContent = '×';
+      del.onclick = (e) => { e.stopPropagation(); deleteEventList(k, i); };
+      row.appendChild(del);
+
+      listEl.appendChild(row);
+    });
+  }
+
+  // ── Timeline ───────────────────────────────────────────────────────
+  function renderTimeline() {
+    const grid = document.getElementById('timeline-grid');
+    grid.innerHTML = '';
+
+    // Center = curYear/curMonth + today's date (clamped to month end)
+    const daysInCurMonth = new Date(curYear, curMonth+1, 0).getDate();
+    const centerDay = Math.min(today.getDate(), daysInCurMonth);
+    const baseCenter = new Date(curYear, curMonth, centerDay);
+
+    document.getElementById('timeline-header').textContent =
+      `🕐 날짜별 회고 — ${curYear}년 ${curMonth+1}월 ${centerDay}일 기준 전후 3일`;
+
+    const colDefs = [
+      { label: '올해',   yearsAgo: 0, accent: '#a5b4fc' },
+      { label: '1년 전', yearsAgo: 1, accent: '#fb923c' },
+      { label: '2년 전', yearsAgo: 2, accent: '#34d399' },
+      { label: '3년 전', yearsAgo: 3, accent: '#f472b6' },
+    ];
+
+    colDefs.forEach(({ label, yearsAgo, accent }) => {
+      const center = new Date(baseCenter);
+      center.setFullYear(baseCenter.getFullYear() - yearsAgo);
+
+      const col = document.createElement('div');
+      col.className = 'tl-col';
+
+      const header = document.createElement('div');
+      header.className = 'tl-col-header';
+      header.style.borderTop = `3px solid ${accent}`;
+      header.innerHTML = `
+        <div class="tl-col-year" style="color:${accent}">${label}</div>
+        <div class="tl-col-date">${center.getFullYear()}. ${center.getMonth()+1}. ${center.getDate()}</div>
+      `;
+      col.appendChild(header);
+
+      for (let offset = -3; offset <= 3; offset++) {
+        const d = new Date(center);
+        d.setDate(center.getDate() + offset);
+        const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+        const evs = events[key] || [];
+        const dow = d.getDay();
+        const isCenter = offset === 0;
+
+        const row = document.createElement('div');
+        row.className = 'tl-day-row' + (isCenter ? ' is-center' : '');
+
+        const badge = document.createElement('div');
+        badge.className = 'tl-date-badge';
+        const numCls = dow===0 ? 'sun' : dow===6 ? 'sat' : '';
+        badge.innerHTML = `
+          <div class="tl-date-num ${numCls}" style="${isCenter?`color:${accent};font-weight:800`:''}">${d.getDate()}</div>
+          <div class="tl-date-dow" style="${dow===0?'color:#FF8A8A':dow===6?'color:#4ECDC4':''}">${DOW_KR[dow]}</div>
+        `;
+        row.appendChild(badge);
+
+        const evWrap = document.createElement('div');
+        evWrap.className = 'tl-events';
+
+        if (evs.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'tl-empty';
+          empty.textContent = '—';
+          evWrap.appendChild(empty);
+        } else {
+          evs.forEach((ev, i) => {
+            const tag = document.createElement('div');
+            tag.className = 'tl-event-tag';
+            tag.style.background = ev.color;
+            tag.innerHTML = (ev.photo ? '<span class="tl-photo-icon">🖼</span>' : '') +
+              `<span style="overflow:hidden;text-overflow:ellipsis">${ev.text}</span>`;
+            tag.onclick = () => openDetail(d.getDate(), i, ev, d.getFullYear(), d.getMonth());
+            evWrap.appendChild(tag);
+          });
+        }
+        row.appendChild(evWrap);
+        col.appendChild(row);
+      }
+      grid.appendChild(col);
+    });
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────
+  function changeMonth(dir) {
+    curMonth += dir;
+    if (curMonth < 0) { curMonth=11; curYear--; }
+    if (curMonth > 11) { curMonth=0; curYear++; }
+    selectedDay = null;
+    updateFabLabel();
+    render();
+  }
+
+  function goToday() {
+    curYear = today.getFullYear();
+    curMonth = today.getMonth();
+    selectedDay = today.getDate();
+    updateFabLabel();
+    render();
+  }
+
+  // ── Detail Modal ───────────────────────────────────────────────────
+  function openDetail(day, idx, ev, yr, mo) {
+    const y = yr !== undefined ? yr : curYear;
+    const m = mo !== undefined ? mo : curMonth;
+    detailKey = dateKey(y, m, day);
+    detailIdx = idx;
+
+    document.getElementById('detail-color-bar').style.background = ev.color;
+    document.getElementById('detail-date-line').textContent = formatDateFull(y, m, day);
+    document.getElementById('detail-title').textContent = ev.text;
+
+    // Memo
+    const memoSection = document.getElementById('detail-memo-section');
+    if (ev.memo && ev.memo.trim()) {
+      document.getElementById('detail-memo-text').textContent = ev.memo;
+      memoSection.style.display = 'block';
+    } else {
+      memoSection.style.display = 'none';
+    }
+
+    // Photo
+    const photoSection = document.getElementById('detail-photo-section');
+    if (ev.photo) {
+      document.getElementById('detail-photo-img').src = ev.photo;
+      photoSection.style.display = 'block';
+    } else {
+      photoSection.style.display = 'none';
+    }
+
+    document.getElementById('detail-overlay').classList.add('open');
+  }
+
+  function closeDetail(e) {
+    if (!e || e.target === document.getElementById('detail-overlay')) {
+      document.getElementById('detail-overlay').classList.remove('open');
+    }
+  }
+
+  function openEditFromDetail() {
+    document.getElementById('detail-overlay').classList.remove('open');
+    const evs = events[detailKey] || [];
+    const ev = evs[detailIdx];
+    if (!ev) return;
+    const parts = detailKey.split('-');
+    const y = parseInt(parts[0]), m = parseInt(parts[1])-1, d = parseInt(parts[2]);
+    curYear = y; curMonth = m;
+    render();
+    setTimeout(() => openEditModal(d, detailIdx, ev), 60);
+  }
+
+  // ── Add / Edit Modal ───────────────────────────────────────────────
+  function openAddModal(day) {
+    editKey = dateKey(curYear, curMonth, day); editIdx = null; currentPhoto = null;
+    document.getElementById('modal-title').textContent = `일정 추가 — ${curMonth+1}월 ${day}일`;
+    document.getElementById('input-title').value = '';
+    document.getElementById('input-memo').value = '';
+    document.getElementById('btn-delete').style.display = 'none';
+    resetPhotoUI();
+    document.getElementById('overlay').classList.add('open');
+    setTimeout(() => document.getElementById('input-title').focus(), 60);
+  }
+
+  function openEditModal(day, idx, ev) {
+    editKey = dateKey(curYear, curMonth, day); editIdx = idx;
+    currentPhoto = ev.photo || null;
+    document.getElementById('modal-title').textContent = `일정 수정 — ${curMonth+1}월 ${day}일`;
+    document.getElementById('input-title').value = ev.text;
+    document.getElementById('input-memo').value = ev.memo || '';
+    document.getElementById('btn-delete').style.display = 'block';
+    if (ev.photo) showPhotoPreview(ev.photo); else resetPhotoUI();
+    document.getElementById('overlay').classList.add('open');
+    setTimeout(() => document.getElementById('input-title').focus(), 60);
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('overlay')) {
+      document.getElementById('overlay').classList.remove('open');
+      document.getElementById('file-input').value = '';
+    }
+  }
+
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showNotif('5MB 이하 사진만 첨부 가능해요 📏'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 900;
+        let w = img.width, h = img.height;
+        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        currentPhoto = canvas.toDataURL('image/jpeg', 0.78);
+        showPhotoPreview(currentPhoto);
+        showNotif('사진이 첨부되었어요 📸');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function showPhotoPreview(src) {
+    document.getElementById('preview-img').src = src;
+    document.getElementById('preview-img').style.display = 'block';
+    document.getElementById('upload-placeholder').style.display = 'none';
+    document.getElementById('remove-photo-btn').style.display = 'inline-block';
+    document.getElementById('upload-area').classList.add('has-image');
+  }
+
+  function resetPhotoUI() {
+    document.getElementById('preview-img').src = '';
+    document.getElementById('preview-img').style.display = 'none';
+    document.getElementById('upload-placeholder').style.display = 'block';
+    document.getElementById('remove-photo-btn').style.display = 'none';
+    document.getElementById('upload-area').classList.remove('has-image');
+    document.getElementById('file-input').value = '';
+  }
+
+  function removePhoto(e) { e.stopPropagation(); currentPhoto = null; resetPhotoUI(); }
+
+  const ua = document.getElementById('upload-area');
+  ua.addEventListener('dragover', (e) => { e.preventDefault(); ua.classList.add('drag-over'); });
+  ua.addEventListener('dragleave', () => ua.classList.remove('drag-over'));
+  ua.addEventListener('drop', (e) => {
+    e.preventDefault(); ua.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const fi = document.getElementById('file-input');
+      const dt = new DataTransfer(); dt.items.add(file); fi.files = dt.files;
+      handleFileSelect({target: fi});
+    }
+  });
+
+  function saveEvent() {
+    const text = document.getElementById('input-title').value.trim();
+    if (!text) { document.getElementById('input-title').focus(); return; }
+    const memo = document.getElementById('input-memo').value.trim();
+    if (!events[editKey]) events[editKey] = [];
+    if (editIdx !== null) {
+      events[editKey][editIdx] = { ...events[editKey][editIdx], text, memo, photo: currentPhoto||null };
+      showNotif('일정이 수정되었어요 ✏️');
+    } else {
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+      events[editKey].push({ text, memo, color, photo: currentPhoto||null });
+      showNotif('일정이 추가되었어요 🎉');
+    }
+    saveStorage(); closeModal(); render();
+  }
+
+  function deleteEventModal() {
+    events[editKey].splice(editIdx, 1);
+    saveStorage(); closeModal(); render();
+    showNotif('일정이 삭제되었어요 🗑️');
+  }
+
+  function deleteEventList(key, idx) {
+    events[key].splice(idx, 1);
+    saveStorage(); render();
+    showNotif('일정이 삭제되었어요 🗑️');
+  }
+
+  function openViewer(src) {
+    document.getElementById('viewer-img').src = src;
+    document.getElementById('img-viewer').classList.add('open');
+  }
+  function closeViewer() { document.getElementById('img-viewer').classList.remove('open'); }
+
+  // ── ICS Export / Import ────────────────────────────────────────────
+  let exportScope = 'all';
+
+  function setExportScope(btn) {
+    document.querySelectorAll('#export-scope .scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    exportScope = btn.dataset.val;
+  }
+
+  function escapeICS(str) {
+    return (str || '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  }
+
+  function toICSDate(y, m, d) {
+    return `${y}${String(m+1).padStart(2,'0')}${String(d).padStart(2,'0')}`;
+  }
+
+  function makeUID(key, idx) {
+    return `${key}-${idx}-mycalendar@local`;
+  }
+
+  function exportICS() {
+    const now = new Date();
+    const stamp = now.toISOString().replace(/[-:]/g,'').slice(0,15) + 'Z';
+
+    // Filter by scope
+    let entries = Object.entries(events);
+    if (exportScope === 'year') {
+      entries = entries.filter(([k]) => k.startsWith(String(curYear)));
+    } else if (exportScope === 'month') {
+      const prefix = `${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+      entries = entries.filter(([k]) => k.startsWith(prefix));
+    }
+
+    const allEvs = entries.flatMap(([k, evs]) =>
+      evs.map((ev, i) => ({ k, ev, i }))
+    );
+
+    if (allEvs.length === 0) {
+      document.getElementById('export-result').textContent = '⚠️ 내보낼 일정이 없어요.';
+      return;
+    }
+
+    let ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//My Calendar//KO',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+    ];
+
+    allEvs.forEach(({ k, ev, i }) => {
+      const [y, mo, d] = k.split('-').map(Number);
+      const dateStr = toICSDate(y, mo - 1, d);
+      // All-day event: DTEND is next day
+      const nextDay = new Date(y, mo - 1, d + 1);
+      const dateEnd = toICSDate(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate());
+
+      ics.push('BEGIN:VEVENT');
+      ics.push(`UID:${makeUID(k, i)}`);
+      ics.push(`DTSTAMP:${stamp}`);
+      ics.push(`DTSTART;VALUE=DATE:${dateStr}`);
+      ics.push(`DTEND;VALUE=DATE:${dateEnd}`);
+      ics.push(`SUMMARY:${escapeICS(ev.text)}`);
+      if (ev.memo) ics.push(`DESCRIPTION:${escapeICS(ev.memo)}`);
+      ics.push('END:VEVENT');
+    });
+
+    ics.push('END:VCALENDAR');
+
+    const blob = new Blob([ics.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const scopeLabel = exportScope === 'all' ? '전체' : exportScope === 'year' ? `${curYear}년` : `${curYear}-${curMonth+1}월`;
+    a.download = `my-calendar-${scopeLabel}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    document.getElementById('export-result').textContent = `✅ ${allEvs.length}개 일정을 내보냈어요!`;
+    setTimeout(() => document.getElementById('export-result').textContent = '', 3000);
+  }
+
+  function importICS(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const merge = document.getElementById('import-merge').checked;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target.result;
+        const imported = parseICS(text);
+        if (imported.count === 0) {
+          document.getElementById('import-result').textContent = '⚠️ 인식된 일정이 없어요.';
+          return;
+        }
+        if (!merge) events = {};
+        // Merge
+        imported.events.forEach(({ key, ev }) => {
+          if (!events[key]) events[key] = [];
+          // Avoid exact duplicate titles on same day
+          const exists = events[key].some(e => e.text === ev.text);
+          if (!exists) events[key].push(ev);
+        });
+        saveStorage(); render();
+        document.getElementById('import-result').textContent =
+          `✅ ${imported.count}개 일정을 가져왔어요!`;
+        showNotif(`Google 캘린더에서 ${imported.count}개 일정을 가져왔어요 📅`);
+        setTimeout(() => document.getElementById('import-result').textContent = '', 4000);
+      } catch(err) {
+        document.getElementById('import-result').textContent = '❌ 파일을 읽는 중 오류가 발생했어요.';
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  }
+
+  function parseICS(text) {
+    // Unfold long lines (RFC 5545)
+    text = text.replace(/\r\n[ \t]/g, '').replace(/\r/g, '');
+    const lines = text.split('\n');
+    const importedEvents = [];
+    let inEvent = false, cur = {};
+
+    lines.forEach(line => {
+      if (line === 'BEGIN:VEVENT') { inEvent = true; cur = {}; return; }
+      if (line === 'END:VEVENT') {
+        inEvent = false;
+        if (cur.summary && cur.date) {
+          const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+          importedEvents.push({
+            key: cur.date,
+            ev: { text: cur.summary, memo: cur.description || '', color, photo: null }
+          });
+        }
+        return;
+      }
+      if (!inEvent) return;
+
+      // Parse DTSTART
+      if (line.startsWith('DTSTART')) {
+        let val = line.split(':').slice(1).join(':').trim();
+        // Strip time part (YYYYMMDDTHHMMSSZ → YYYYMMDD)
+        val = val.replace(/T.*/,'').replace(/-/g,'').slice(0,8);
+        if (val.length === 8) {
+          const y = val.slice(0,4), m = val.slice(4,6), d = val.slice(6,8);
+          cur.date = `${y}-${m}-${d}`;
+        }
+      }
+      // SUMMARY
+      if (line.startsWith('SUMMARY:')) {
+        cur.summary = unescapeICS(line.slice(8).trim());
+      }
+      // DESCRIPTION
+      if (line.startsWith('DESCRIPTION:')) {
+        cur.description = unescapeICS(line.slice(12).trim());
+      }
+    });
+
+    return { count: importedEvents.length, events: importedEvents };
+  }
+
+  function unescapeICS(str) {
+    return str.replace(/\\n/g,'\n').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\');
+  }
+
+  // Init
+  selectedDay = today.getDate();
+  updateFabLabel();
+  render();
+</script>
+</body>
+</html>

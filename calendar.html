@@ -1159,7 +1159,7 @@
     setSyncStatus('로그아웃 되었어요');
   }
 
-  async function fetchUserInfo() {
+  async function fetchUserInfo(silent = false) {
     try {
       const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: 'Bearer ' + accessToken }
@@ -1180,7 +1180,13 @@
     } catch(e) {
       accessToken = null;
       sessionStorage.removeItem('gc_token');
-      setSyncStatus('⚠️ 로그인 세션이 만료됐어요. 다시 로그인해주세요', 'err');
+      gapi.client.setToken(null);
+      if (silent) {
+        // 페이지 첫 로드시엔 에러 메시지 없이 조용히 초기화
+        setSyncStatus('Google 계정으로 로그인해서 동기화를 시작하세요');
+      } else {
+        setSyncStatus('❌ 로그인에 실패했어요. 다시 시도해주세요', 'err');
+      }
     }
   }
 

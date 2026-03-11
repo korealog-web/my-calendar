@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>캘린더 앱</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -318,64 +320,78 @@
     .tl-event-tag:hover { opacity: 0.8; }
     .tl-photo-icon { font-size: 8px; flex-shrink: 0; }
 
-    /* Google Calendar Sync Panel */
+    /* ── Google OAuth Sync Panel ── */
     .sync-wrap {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 18px; padding: 20px 22px; margin-top: 18px;
     }
     .sync-header {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
     }
-    .sync-header-icon { font-size: 22px; }
+    .sync-header-icon { font-size: 24px; }
     .sync-header-text { flex: 1; }
-    .sync-header-title { font-size: 14px; font-weight: 700; }
-    .sync-header-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
-    .sync-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    .sync-header-title { font-size: 15px; font-weight: 700; }
+    .sync-header-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+
+    /* Google login button */
+    .google-login-area { text-align: center; padding: 10px 0 4px; }
+    .google-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: #fff; color: #3c4043;
+      border: none; border-radius: 10px; padding: 11px 22px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      transition: box-shadow 0.2s, transform 0.15s;
+      font-family: 'Malgun Gothic', sans-serif;
     }
-    @media (max-width: 500px) { .sync-grid { grid-template-columns: 1fr; } }
-    .sync-card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px; padding: 16px;
+    .google-btn:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.4); transform: translateY(-1px); }
+    .google-btn img { width: 20px; height: 20px; }
+    .google-login-desc { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 10px; }
+
+    /* Logged-in state */
+    .sync-user-bar {
+      display: none; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 14px;
+      margin-bottom: 16px;
     }
-    .sync-card-title {
-      font-size: 12px; font-weight: 700; margin-bottom: 6px;
-      display: flex; align-items: center; gap: 6px;
+    .sync-user-bar.visible { display: flex; }
+    .sync-user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2); object-fit: cover;
     }
-    .sync-card-desc {
-      font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 14px; line-height: 1.5;
+    .sync-user-info { flex: 1; min-width: 0; }
+    .sync-user-name { font-size: 13px; font-weight: 600; }
+    .sync-user-email { font-size: 10px; color: rgba(255,255,255,0.4); }
+    .sync-logout-btn {
+      background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.5);
+      border-radius: 8px; padding: 5px 10px; font-size: 11px; cursor: pointer;
+      font-family: 'Malgun Gothic', sans-serif;
     }
-    .sync-steps {
-      font-size: 10px; color: rgba(255,255,255,0.3);
-      margin-bottom: 14px; line-height: 1.8;
-      padding-left: 2px;
+    .sync-logout-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+    /* Action buttons */
+    .sync-actions {
+      display: none; gap: 10px; margin-bottom: 14px;
     }
-    .sync-steps span { display: block; }
-    .sync-btn {
-      width: 100%; padding: 10px; border-radius: 10px; border: none;
+    .sync-actions.visible { display: flex; }
+    .sync-action-btn {
+      flex: 1; padding: 12px 8px; border-radius: 12px; border: none;
       font-size: 12px; font-weight: 700; cursor: pointer;
       font-family: 'Malgun Gothic', sans-serif;
-      transition: opacity 0.2s;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      transition: opacity 0.2s, transform 0.15s;
     }
-    .sync-btn:hover { opacity: 0.85; }
-    .sync-btn-export {
-      background: linear-gradient(135deg, #4285F4, #34A853);
-      color: #fff;
-    }
-    .sync-btn-import {
-      background: rgba(255,255,255,0.1);
-      color: #fff; border: 1px solid rgba(255,255,255,0.2) !important;
-    }
-    .sync-divider {
-      border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 16px 0;
-    }
-    .sync-scope {
-      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
-    }
+    .sync-action-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .sync-action-btn span:first-child { font-size: 20px; }
+    .sync-btn-pull { background: linear-gradient(135deg,#4285F4,#34A853); color: #fff; }
+    .sync-btn-push { background: linear-gradient(135deg,#EA4335,#FBBC05); color: #fff; }
+    .sync-btn-both { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; }
+
+    .sync-scope { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
     .scope-btn {
-      padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15);
+      padding: 5px 13px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.15);
       background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6);
       font-size: 11px; cursor: pointer; font-family: 'Malgun Gothic', sans-serif;
       transition: all 0.2s;
@@ -384,10 +400,45 @@
       background: rgba(102,126,234,0.3); border-color: rgba(102,126,234,0.6);
       color: #fff; font-weight: 600;
     }
-    .sync-result {
-      font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 10px;
-      min-height: 16px; text-align: center;
+
+    /* ICS fallback */
+    .sync-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 18px 0; }
+    .sync-divider-label {
+      text-align: center; font-size: 10px; color: rgba(255,255,255,0.25);
+      position: relative; margin: 0;
     }
+    .sync-divider-label span {
+      background: #1a1535; padding: 0 10px; position: relative; top: -1px;
+    }
+    .sync-ics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 500px) { .sync-ics-grid { grid-template-columns: 1fr; } }
+    .sync-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px; padding: 14px;
+    }
+    .sync-card-title { font-size: 12px; font-weight: 700; margin-bottom: 5px; }
+    .sync-card-desc { font-size: 10px; color: rgba(255,255,255,0.35); margin-bottom: 10px; line-height: 1.5; }
+    .sync-btn {
+      width: 100%; padding: 9px; border-radius: 9px; border: none;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      font-family: 'Malgun Gothic', sans-serif; transition: opacity 0.2s;
+    }
+    .sync-btn:hover { opacity: 0.85; }
+    .sync-btn-export { background: linear-gradient(135deg,#4285F4,#34A853); color: #fff; }
+    .sync-btn-import { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2) !important; }
+
+    /* Status bar */
+    .sync-status {
+      margin-top: 14px; padding: 10px 14px; border-radius: 10px;
+      background: rgba(255,255,255,0.05); font-size: 12px;
+      color: rgba(255,255,255,0.5); text-align: center; min-height: 38px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .sync-status.ok { color: #34d399; background: rgba(52,211,153,0.08); }
+    .sync-status.err { color: #f87171; background: rgba(248,113,113,0.08); }
+    .sync-status.loading { color: #93c5fd; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(147,197,253,0.3); border-top-color: #93c5fd; border-radius: 50%; animation: spin 0.8s linear infinite; }
   </style>
 </head>
 <body>
@@ -436,50 +487,78 @@
   <!-- Google Calendar Sync -->
   <div class="sync-wrap">
     <div class="sync-header">
-      <div class="sync-header-icon">📅</div>
+      <div class="sync-header-icon">🔗</div>
       <div class="sync-header-text">
-        <div class="sync-header-title">Google 캘린더 연동</div>
-        <div class="sync-header-sub">.ics 파일로 내보내기 / 가져오기</div>
+        <div class="sync-header-title">Google 캘린더 실시간 동기화</div>
+        <div class="sync-header-sub">Google 계정으로 로그인하여 양방향 동기화</div>
       </div>
     </div>
 
-    <div class="sync-grid">
-      <!-- Export -->
+    <!-- 로그인 전 -->
+    <div id="google-login-section">
+      <div class="google-login-area">
+        <button class="google-btn" onclick="googleSignIn()">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"/>
+          Google 계정으로 로그인
+        </button>
+        <div class="google-login-desc">로그인하면 Google 캘린더와 직접 동기화할 수 있어요</div>
+      </div>
+    </div>
+
+    <!-- 로그인 후 -->
+    <div class="sync-user-bar" id="sync-user-bar">
+      <img class="sync-user-avatar" id="sync-user-avatar" src="" alt="프로필"/>
+      <div class="sync-user-info">
+        <div class="sync-user-name" id="sync-user-name"></div>
+        <div class="sync-user-email" id="sync-user-email"></div>
+      </div>
+      <button class="sync-logout-btn" onclick="googleSignOut()">로그아웃</button>
+    </div>
+
+    <div class="sync-scope" id="sync-scope-row" style="display:none">
+      <button class="scope-btn active" data-val="all"   onclick="setSyncScope(this)">전체</button>
+      <button class="scope-btn"        data-val="year"  onclick="setSyncScope(this)">올해</button>
+      <button class="scope-btn"        data-val="month" onclick="setSyncScope(this)">이번 달</button>
+    </div>
+
+    <div class="sync-actions" id="sync-actions">
+      <button class="sync-action-btn sync-btn-pull" onclick="syncPull()">
+        <span>⬇️</span><span>Google→앱 가져오기</span>
+      </button>
+      <button class="sync-action-btn sync-btn-push" onclick="syncPush()">
+        <span>⬆️</span><span>앱→Google 올리기</span>
+      </button>
+      <button class="sync-action-btn sync-btn-both" onclick="syncBoth()">
+        <span>🔄</span><span>양방향 동기화</span>
+      </button>
+    </div>
+
+    <div class="sync-status" id="sync-status">Google 계정으로 로그인해서 동기화를 시작하세요</div>
+
+    <!-- ICS 수동 방식 (항상 사용 가능) -->
+    <hr class="sync-divider"/>
+    <p class="sync-divider-label"><span>또는 .ics 파일로 수동 동기화</span></p>
+    <div class="sync-ics-grid" style="margin-top:14px">
       <div class="sync-card">
         <div class="sync-card-title">⬆️ 내보내기</div>
-        <div class="sync-card-desc">이 캘린더의 일정을 .ics 파일로 내보내서 Google 캘린더에 가져올 수 있어요.</div>
-        <div class="sync-scope" id="export-scope">
-          <button class="scope-btn active" data-val="all" onclick="setExportScope(this)">전체</button>
-          <button class="scope-btn" data-val="year" onclick="setExportScope(this)">올해</button>
-          <button class="scope-btn" data-val="month" onclick="setExportScope(this)">이번 달</button>
+        <div class="sync-card-desc">일정을 .ics 파일로 저장 → Google 캘린더에 직접 가져오기</div>
+        <div class="sync-scope" id="export-scope" style="margin-bottom:10px">
+          <button class="scope-btn active" data-val="all"   onclick="setExportScope(this)">전체</button>
+          <button class="scope-btn"        data-val="year"  onclick="setExportScope(this)">올해</button>
+          <button class="scope-btn"        data-val="month" onclick="setExportScope(this)">이번 달</button>
         </div>
-        <div class="sync-steps">
-          <span>① 아래 버튼으로 .ics 파일 다운로드</span>
-          <span>② Google 캘린더 → 설정 ⚙️</span>
-          <span>③ 가져오기 → .ics 파일 선택</span>
-        </div>
-        <button class="sync-btn sync-btn-export" onclick="exportICS()">⬇️ .ics 파일 다운로드</button>
-        <div class="sync-result" id="export-result"></div>
+        <button class="sync-btn sync-btn-export" onclick="exportICS()">⬇️ .ics 다운로드</button>
+        <div class="sync-result" id="export-result" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:8px;min-height:16px;text-align:center"></div>
       </div>
-
-      <!-- Import -->
       <div class="sync-card">
         <div class="sync-card-title">⬇️ 가져오기</div>
-        <div class="sync-card-desc">Google 캘린더에서 내보낸 .ics 파일을 이 캘린더로 가져올 수 있어요.</div>
-        <div class="sync-steps">
-          <span>① Google 캘린더 → 설정 ⚙️</span>
-          <span>② 내보내기 → .ics 파일 다운로드</span>
-          <span>③ 아래 버튼으로 파일 선택</span>
-        </div>
-        <div style="margin-bottom:10px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,0.45);cursor:pointer">
-            <input type="checkbox" id="import-merge" checked style="accent-color:#667eea"/>
-            기존 일정 유지하고 병합
-          </label>
-        </div>
+        <div class="sync-card-desc">Google에서 내보낸 .ics 파일을 이 캘린더로 불러오기</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.4);cursor:pointer;margin-bottom:10px">
+          <input type="checkbox" id="import-merge" checked style="accent-color:#667eea"/>기존 일정 유지 (병합)
+        </label>
         <button class="sync-btn sync-btn-import" onclick="document.getElementById('ics-input').click()">📂 .ics 파일 선택</button>
         <input type="file" id="ics-input" accept=".ics" style="display:none" onchange="importICS(event)"/>
-        <div class="sync-result" id="import-result"></div>
+        <div class="sync-result" id="import-result" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:8px;min-height:16px;text-align:center"></div>
       </div>
     </div>
   </div>
@@ -991,7 +1070,261 @@
   }
   function closeViewer() { document.getElementById('img-viewer').classList.remove('open'); }
 
-  // ── ICS Export / Import ────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // Google OAuth 2.0 + Calendar API
+  // ══════════════════════════════════════════════════════════════════
+  const CLIENT_ID = '564475328590-9e6da3pripuvb94d1rh6hjifekj0i772.apps.googleusercontent.com';
+  const SCOPES = 'https://www.googleapis.com/auth/calendar';
+  const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+
+  let gapiReady = false;
+  let gisReady  = false;
+  let tokenClient = null;
+  let accessToken = null;
+  let syncScope = 'all';
+
+  // Load gapi client
+  function gapiLoaded() {
+    gapi.load('client', async () => {
+      await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
+      gapiReady = true;
+      checkReady();
+    });
+  }
+
+  // Load GIS token client
+  function gisLoaded() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (resp) => {
+        if (resp.error) { setSyncStatus('❌ 로그인 실패: ' + resp.error, 'err'); return; }
+        accessToken = resp.access_token;
+        gapi.client.setToken({ access_token: accessToken });
+        fetchUserInfo();
+      }
+    });
+    gisReady = true;
+    checkReady();
+  }
+
+  function checkReady() {
+    // Auto-hook once both libs ready
+    if (gapiReady && gisReady) {
+      // Restore saved token if exists
+      const saved = sessionStorage.getItem('gc_token');
+      if (saved) {
+        accessToken = saved;
+        gapi.client.setToken({ access_token: saved });
+        fetchUserInfo();
+      }
+    }
+  }
+
+  // Called when gapi.js finishes loading
+  window.gapiLoaded = gapiLoaded;
+  window.gisLoaded  = gisLoaded;
+
+  // Hook script onload events after DOM ready
+  window.addEventListener('load', () => {
+    // gapi
+    const gapiScript = document.createElement('script');
+    gapiScript.src = 'https://apis.google.com/js/api.js';
+    gapiScript.onload = gapiLoaded;
+    document.head.appendChild(gapiScript);
+    // gis
+    const gisScript = document.createElement('script');
+    gisScript.src = 'https://accounts.google.com/gsi/client';
+    gisScript.onload = gisLoaded;
+    document.head.appendChild(gisScript);
+  });
+
+  function googleSignIn() {
+    if (!gisReady) { setSyncStatus('⏳ Google 라이브러리 로딩 중... 잠시 후 다시 시도하세요', 'loading'); return; }
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  }
+
+  function googleSignOut() {
+    if (accessToken) {
+      google.accounts.oauth2.revoke(accessToken, () => {});
+      accessToken = null;
+      gapi.client.setToken(null);
+      sessionStorage.removeItem('gc_token');
+    }
+    document.getElementById('sync-user-bar').classList.remove('visible');
+    document.getElementById('sync-actions').classList.remove('visible');
+    document.getElementById('sync-scope-row').style.display = 'none';
+    document.getElementById('google-login-section').style.display = 'block';
+    setSyncStatus('로그아웃 되었어요');
+  }
+
+  async function fetchUserInfo() {
+    try {
+      const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      if (!resp.ok) throw new Error('token_expired');
+      const info = await resp.json();
+      sessionStorage.setItem('gc_token', accessToken);
+
+      document.getElementById('sync-user-name').textContent  = info.name || '사용자';
+      document.getElementById('sync-user-email').textContent = info.email || '';
+      document.getElementById('sync-user-avatar').src        = info.picture || '';
+
+      document.getElementById('google-login-section').style.display = 'none';
+      document.getElementById('sync-user-bar').classList.add('visible');
+      document.getElementById('sync-actions').classList.add('visible');
+      document.getElementById('sync-scope-row').style.display = 'flex';
+      setSyncStatus('✅ 로그인 완료! 동기화 버튼을 눌러보세요', 'ok');
+    } catch(e) {
+      accessToken = null;
+      sessionStorage.removeItem('gc_token');
+      setSyncStatus('⚠️ 로그인 세션이 만료됐어요. 다시 로그인해주세요', 'err');
+    }
+  }
+
+  function setSyncStatus(msg, type = '') {
+    const el = document.getElementById('sync-status');
+    el.className = 'sync-status' + (type ? ' ' + type : '');
+    el.innerHTML = type === 'loading'
+      ? `<span class="spinner"></span> ${msg}`
+      : msg;
+  }
+
+  function setSyncScope(btn) {
+    document.querySelectorAll('#sync-scope-row .scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    syncScope = btn.dataset.val;
+  }
+
+  // ── Sync helpers ─────────────────────────────────────────────────
+  function getScopeDates() {
+    const now = new Date();
+    if (syncScope === 'month') {
+      return {
+        timeMin: new Date(curYear, curMonth, 1).toISOString(),
+        timeMax: new Date(curYear, curMonth+1, 0, 23,59,59).toISOString()
+      };
+    } else if (syncScope === 'year') {
+      return {
+        timeMin: new Date(curYear, 0, 1).toISOString(),
+        timeMax: new Date(curYear, 11, 31, 23,59,59).toISOString()
+      };
+    } else {
+      return {
+        timeMin: new Date(now.getFullYear()-5, 0, 1).toISOString(),
+        timeMax: new Date(now.getFullYear()+2, 11, 31).toISOString()
+      };
+    }
+  }
+
+  // ── Pull: Google → App ──────────────────────────────────────────
+  async function syncPull() {
+    if (!accessToken) { setSyncStatus('⚠️ 먼저 Google 계정으로 로그인해주세요', 'err'); return; }
+    setSyncStatus('Google 캘린더에서 일정을 가져오는 중...', 'loading');
+    try {
+      const { timeMin, timeMax } = getScopeDates();
+      let pageToken = null;
+      let imported = 0;
+      do {
+        const params = {
+          calendarId: 'primary', singleEvents: true,
+          timeMin, timeMax, maxResults: 250,
+          orderBy: 'startTime'
+        };
+        if (pageToken) params.pageToken = pageToken;
+        const resp = await gapi.client.calendar.events.list(params);
+        const items = resp.result.items || [];
+        items.forEach(item => {
+          if (!item.summary) return;
+          const start = item.start.date || item.start.dateTime;
+          if (!start) return;
+          const dateStr = start.slice(0,10); // YYYY-MM-DD
+          if (!events[dateStr]) events[dateStr] = [];
+          const exists = events[dateStr].some(e => e.text === item.summary && e.gcId === item.id);
+          if (!exists) {
+            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            events[dateStr].push({
+              text: item.summary,
+              memo: item.description || '',
+              color, photo: null,
+              gcId: item.id
+            });
+            imported++;
+          }
+        });
+        pageToken = resp.result.nextPageToken;
+      } while (pageToken);
+
+      saveStorage(); render();
+      setSyncStatus(`✅ ${imported}개 일정을 가져왔어요!`, 'ok');
+      showNotif(`Google 캘린더에서 ${imported}개 일정을 가져왔어요 📅`);
+    } catch(e) {
+      console.error(e);
+      setSyncStatus('❌ 가져오기 실패: ' + (e.result?.error?.message || e.message || '오류'), 'err');
+    }
+  }
+
+  // ── Push: App → Google ──────────────────────────────────────────
+  async function syncPush() {
+    if (!accessToken) { setSyncStatus('⚠️ 먼저 Google 계정으로 로그인해주세요', 'err'); return; }
+    setSyncStatus('Google 캘린더에 일정을 올리는 중...', 'loading');
+    try {
+      const { timeMin, timeMax } = getScopeDates();
+      const tMin = new Date(timeMin), tMax = new Date(timeMax);
+
+      let pushed = 0, updated = 0;
+      const entries = Object.entries(events);
+      for (const [key, evs] of entries) {
+        const d = new Date(key);
+        if (d < tMin || d > tMax) continue;
+        for (let i = 0; i < evs.length; i++) {
+          const ev = evs[i];
+          const nextDay = new Date(key);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const body = {
+            summary: ev.text,
+            description: ev.memo || '',
+            start: { date: key },
+            end: { date: nextDay.toISOString().slice(0,10) }
+          };
+          if (ev.gcId) {
+            // Update existing
+            try {
+              await gapi.client.calendar.events.update({ calendarId:'primary', eventId: ev.gcId, resource: body });
+              updated++;
+            } catch(err) {
+              // If not found, insert new
+              const r = await gapi.client.calendar.events.insert({ calendarId:'primary', resource: body });
+              events[key][i].gcId = r.result.id;
+              pushed++;
+            }
+          } else {
+            const r = await gapi.client.calendar.events.insert({ calendarId:'primary', resource: body });
+            events[key][i].gcId = r.result.id;
+            pushed++;
+          }
+        }
+      }
+      saveStorage(); render();
+      setSyncStatus(`✅ ${pushed}개 추가, ${updated}개 업데이트 완료!`, 'ok');
+      showNotif(`Google 캘린더에 ${pushed}개 일정을 올렸어요 ☁️`);
+    } catch(e) {
+      console.error(e);
+      setSyncStatus('❌ 올리기 실패: ' + (e.result?.error?.message || e.message || '오류'), 'err');
+    }
+  }
+
+  // ── Both ways ────────────────────────────────────────────────────
+  async function syncBoth() {
+    if (!accessToken) { setSyncStatus('⚠️ 먼저 Google 계정으로 로그인해주세요', 'err'); return; }
+    setSyncStatus('양방향 동기화 중...', 'loading');
+    await syncPull();
+    await syncPush();
+    setSyncStatus('✅ 양방향 동기화 완료!', 'ok');
+  }
+
+  // ── ICS Export / Import ──────────────────────────────────────────
   let exportScope = 'all';
 
   function setExportScope(btn) {
@@ -1001,160 +1334,100 @@
   }
 
   function escapeICS(str) {
-    return (str || '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+    return (str||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
   }
-
   function toICSDate(y, m, d) {
     return `${y}${String(m+1).padStart(2,'0')}${String(d).padStart(2,'0')}`;
   }
 
-  function makeUID(key, idx) {
-    return `${key}-${idx}-mycalendar@local`;
-  }
-
   function exportICS() {
     const now = new Date();
-    const stamp = now.toISOString().replace(/[-:]/g,'').slice(0,15) + 'Z';
-
-    // Filter by scope
+    const stamp = now.toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
     let entries = Object.entries(events);
-    if (exportScope === 'year') {
-      entries = entries.filter(([k]) => k.startsWith(String(curYear)));
-    } else if (exportScope === 'month') {
-      const prefix = `${curYear}-${String(curMonth+1).padStart(2,'0')}`;
-      entries = entries.filter(([k]) => k.startsWith(prefix));
+    if (exportScope==='year') entries = entries.filter(([k])=>k.startsWith(String(curYear)));
+    else if (exportScope==='month') {
+      const p=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+      entries = entries.filter(([k])=>k.startsWith(p));
     }
-
-    const allEvs = entries.flatMap(([k, evs]) =>
-      evs.map((ev, i) => ({ k, ev, i }))
-    );
-
-    if (allEvs.length === 0) {
-      document.getElementById('export-result').textContent = '⚠️ 내보낼 일정이 없어요.';
-      return;
-    }
-
-    let ics = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//My Calendar//KO',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-    ];
-
-    allEvs.forEach(({ k, ev, i }) => {
-      const [y, mo, d] = k.split('-').map(Number);
-      const dateStr = toICSDate(y, mo - 1, d);
-      // All-day event: DTEND is next day
-      const nextDay = new Date(y, mo - 1, d + 1);
-      const dateEnd = toICSDate(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate());
-
+    const allEvs = entries.flatMap(([k,evs])=>evs.map((ev,i)=>({k,ev,i})));
+    if (!allEvs.length) { document.getElementById('export-result').textContent='⚠️ 내보낼 일정 없음'; return; }
+    let ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//My Calendar//KO','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+    allEvs.forEach(({k,ev,i})=>{
+      const [y,mo,d]=k.split('-').map(Number);
+      const ds=toICSDate(y,mo-1,d);
+      const nd=new Date(y,mo-1,d+1);
+      const de=toICSDate(nd.getFullYear(),nd.getMonth(),nd.getDate());
       ics.push('BEGIN:VEVENT');
-      ics.push(`UID:${makeUID(k, i)}`);
+      ics.push(`UID:${k}-${i}-mycal@local`);
       ics.push(`DTSTAMP:${stamp}`);
-      ics.push(`DTSTART;VALUE=DATE:${dateStr}`);
-      ics.push(`DTEND;VALUE=DATE:${dateEnd}`);
+      ics.push(`DTSTART;VALUE=DATE:${ds}`);
+      ics.push(`DTEND;VALUE=DATE:${de}`);
       ics.push(`SUMMARY:${escapeICS(ev.text)}`);
-      if (ev.memo) ics.push(`DESCRIPTION:${escapeICS(ev.memo)}`);
+      if(ev.memo) ics.push(`DESCRIPTION:${escapeICS(ev.memo)}`);
       ics.push('END:VEVENT');
     });
-
     ics.push('END:VCALENDAR');
-
-    const blob = new Blob([ics.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const scopeLabel = exportScope === 'all' ? '전체' : exportScope === 'year' ? `${curYear}년` : `${curYear}-${curMonth+1}월`;
-    a.download = `my-calendar-${scopeLabel}.ics`;
+    const blob=new Blob([ics.join('\r\n')],{type:'text/calendar;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    const lbl=exportScope==='all'?'전체':exportScope==='year'?`${curYear}년`:`${curYear}-${curMonth+1}월`;
+    a.download=`my-calendar-${lbl}.ics`;
     a.click();
     URL.revokeObjectURL(url);
-
-    document.getElementById('export-result').textContent = `✅ ${allEvs.length}개 일정을 내보냈어요!`;
-    setTimeout(() => document.getElementById('export-result').textContent = '', 3000);
+    document.getElementById('export-result').textContent=`✅ ${allEvs.length}개 내보냄`;
+    setTimeout(()=>document.getElementById('export-result').textContent='',3000);
   }
 
   function importICS(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const merge = document.getElementById('import-merge').checked;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
+    const file=e.target.files[0]; if(!file) return;
+    const merge=document.getElementById('import-merge').checked;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
       try {
-        const text = ev.target.result;
-        const imported = parseICS(text);
-        if (imported.count === 0) {
-          document.getElementById('import-result').textContent = '⚠️ 인식된 일정이 없어요.';
-          return;
-        }
-        if (!merge) events = {};
-        // Merge
-        imported.events.forEach(({ key, ev }) => {
-          if (!events[key]) events[key] = [];
-          // Avoid exact duplicate titles on same day
-          const exists = events[key].some(e => e.text === ev.text);
-          if (!exists) events[key].push(ev);
+        const imported=parseICS(ev.target.result);
+        if(!imported.count){document.getElementById('import-result').textContent='⚠️ 인식된 일정 없음';return;}
+        if(!merge) events={};
+        imported.events.forEach(({key,ev})=>{
+          if(!events[key]) events[key]=[];
+          if(!events[key].some(e=>e.text===ev.text)) events[key].push(ev);
         });
         saveStorage(); render();
-        document.getElementById('import-result').textContent =
-          `✅ ${imported.count}개 일정을 가져왔어요!`;
-        showNotif(`Google 캘린더에서 ${imported.count}개 일정을 가져왔어요 📅`);
-        setTimeout(() => document.getElementById('import-result').textContent = '', 4000);
-      } catch(err) {
-        document.getElementById('import-result').textContent = '❌ 파일을 읽는 중 오류가 발생했어요.';
-      }
+        document.getElementById('import-result').textContent=`✅ ${imported.count}개 가져옴`;
+        showNotif(`${imported.count}개 일정을 가져왔어요 📅`);
+        setTimeout(()=>document.getElementById('import-result').textContent='',4000);
+      } catch(err){ document.getElementById('import-result').textContent='❌ 파일 오류'; }
     };
-    reader.readAsText(file, 'UTF-8');
-    e.target.value = '';
+    reader.readAsText(file,'UTF-8');
+    e.target.value='';
   }
 
   function parseICS(text) {
-    // Unfold long lines (RFC 5545)
-    text = text.replace(/\r\n[ \t]/g, '').replace(/\r/g, '');
-    const lines = text.split('\n');
-    const importedEvents = [];
-    let inEvent = false, cur = {};
-
-    lines.forEach(line => {
-      if (line === 'BEGIN:VEVENT') { inEvent = true; cur = {}; return; }
-      if (line === 'END:VEVENT') {
-        inEvent = false;
-        if (cur.summary && cur.date) {
-          const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-          importedEvents.push({
-            key: cur.date,
-            ev: { text: cur.summary, memo: cur.description || '', color, photo: null }
-          });
+    text=text.replace(/\r\n[ \t]/g,'').replace(/\r/g,'');
+    const lines=text.split('\n');
+    const result=[]; let inEv=false,cur={};
+    lines.forEach(l=>{
+      if(l==='BEGIN:VEVENT'){inEv=true;cur={};return;}
+      if(l==='END:VEVENT'){
+        inEv=false;
+        if(cur.summary&&cur.date){
+          result.push({key:cur.date,ev:{text:cur.summary,memo:cur.description||'',color:COLORS[Math.floor(Math.random()*COLORS.length)],photo:null}});
         }
         return;
       }
-      if (!inEvent) return;
-
-      // Parse DTSTART
-      if (line.startsWith('DTSTART')) {
-        let val = line.split(':').slice(1).join(':').trim();
-        // Strip time part (YYYYMMDDTHHMMSSZ → YYYYMMDD)
-        val = val.replace(/T.*/,'').replace(/-/g,'').slice(0,8);
-        if (val.length === 8) {
-          const y = val.slice(0,4), m = val.slice(4,6), d = val.slice(6,8);
-          cur.date = `${y}-${m}-${d}`;
-        }
+      if(!inEv) return;
+      if(l.startsWith('DTSTART')){
+        let v=l.split(':').slice(1).join(':').trim().replace(/T.*/,'').replace(/-/g,'').slice(0,8);
+        if(v.length===8) cur.date=`${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`;
       }
-      // SUMMARY
-      if (line.startsWith('SUMMARY:')) {
-        cur.summary = unescapeICS(line.slice(8).trim());
-      }
-      // DESCRIPTION
-      if (line.startsWith('DESCRIPTION:')) {
-        cur.description = unescapeICS(line.slice(12).trim());
-      }
+      if(l.startsWith('SUMMARY:')) cur.summary=unescapeICS(l.slice(8).trim());
+      if(l.startsWith('DESCRIPTION:')) cur.description=unescapeICS(l.slice(12).trim());
     });
-
-    return { count: importedEvents.length, events: importedEvents };
+    return {count:result.length,events:result};
   }
 
-  function unescapeICS(str) {
-    return str.replace(/\\n/g,'\n').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\');
+  function unescapeICS(s){
+    return s.replace(/\\n/g,'\n').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\');
   }
 
   // Init
